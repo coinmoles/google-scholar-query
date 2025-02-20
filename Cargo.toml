@@ -1,8 +1,8 @@
 [package]
-name = "gscholar"
+name = "google-scholar-query"
 version = "0.1.0"
 edition = "2018"
-authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>"]
+authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>", "Julien-cpsn"]
 description = "The unofficial Google Scholar API"
 repository = "https://github.com/L04DB4L4NC3R/gscholar"
 readme = "README.md"
@@ -13,7 +13,8 @@ categories = ["api-bindings"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
-scraper = "0.12.0"
-select = "0.5.0"
+reqwest = { version = "0.12.12", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+tokio = { version = "1", default-features = false, features = ["test-util"] }
+scraper = { version = "0.22.0", default-features = false }
+select = { version = "0.6.0", default-features = false }
+async-trait = { version = "0.1.86", default-features = false }

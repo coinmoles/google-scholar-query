@@ -2,11 +2,14 @@ extern crate reqwest;
 extern crate select;
 
 use scraper::{Html, Selector};
+use async_trait::async_trait;
 
+#[derive(Debug)]
 pub struct Client {
      client: reqwest::Client,
 }
 
+#[derive(Debug)]
 pub enum Error {
     ConnectionError,
     ParseError,
@@ -16,6 +19,7 @@ pub enum Error {
     InvalidResponseError,
 }
 
+#[derive(Debug)]
 pub struct ScholarResult {
    pub title: String,
    pub author: String,
@@ -23,12 +27,13 @@ pub struct ScholarResult {
    pub link: String,
 }
 
+#[derive(Debug)]
 pub struct ScholarArgs {
    // q - required
-   pub query: &'static str,
+   pub query: String,
 
    // cites - citaction id to trigger "cited by"
-   pub cite_id: Option<&'static str>,
+   pub cite_id: Option<String>,
 
    // as_ylo - give results from this year onwards
    pub from_year: Option<u16>,
@@ -40,14 +45,14 @@ pub struct ScholarArgs {
    pub sort_by: Option<u8>,
 
    // cluster - query all versions. Use with q and cites prohibited
-   pub cluster_id: Option<&'static str>,
+   pub cluster_id: Option<String>,
 
    // hl - eg: hl=en for english
-   pub lang: Option<&'static str>,
+   pub lang: Option<String>,
 
    // lr - one or multiple languages to limit the results to
    // eg: lr=lang_fr|lang_en
-   pub lang_limit: Option<&'static str>,
+   pub lang_limit: Option<String>,
 
    // num - max number of results to return
    pub limit: Option<u32>,
@@ -67,6 +72,7 @@ pub struct ScholarArgs {
    pub include_citations: Option<bool>,
 }
 
+#[async_trait]
 pub trait Args {
     fn get_service(&self) -> Services;
     fn get_url(&self) -> Result<String, Error>;
@@ -76,13 +82,6 @@ pub trait Args {
 impl Args for ScholarArgs {
     fn get_service(&self) -> Services {
         return Services::Scholar;
-    }
-
-    fn get_limit(&self) -> usize {
-        if let Some(s) = self.limit {
-            return s as usize
-        }
-        return 0usize
     }
 
     fn get_url(&self) -> Result<String, Error> {
@@ -95,9 +94,9 @@ impl Args for ScholarArgs {
        }
 
        url.push_str("q=");
-       url.push_str(self.query);
+       url.push_str(&self.query);
 
-       if let Some(i) = self.cite_id {
+       if let Some(i) = &self.cite_id {
            url.push_str("&cites=");
            url.push_str(i);
        }
@@ -115,16 +114,16 @@ impl Args for ScholarArgs {
                url.push_str(&i.to_string()[..]);
            }
        }
-       if let Some(i) = self.cluster_id {
+       if let Some(i) = &self.cluster_id {
            url.push_str("&cluster=");
            url.push_str(i);
        }
-       if let Some(i) = self.lang {
+       if let Some(i) = &self.lang {
            // TODO: validation
            url.push_str("&hl=");
            url.push_str(i);
        }
-       if let Some(i) = self.lang_limit {
+       if let Some(i) = &self.lang_limit {
            // TODO: validation
            url.push_str("&lr=");
            url.push_str(i);
@@ -161,10 +160,20 @@ impl Args for ScholarArgs {
                url.push_str("0");
            }
        }
+
        return Ok(url);
+    }
+
+    fn get_limit(&self) -> usize {
+        if let Some(s) = self.limit {
+            return s as usize
+        }
+
+        return 0
     }
 }
 
+#[derive(Debug)]
 pub enum Services {
     Scholar,
 }
@@ -237,7 +246,7 @@ impl Client {
         return Ok(response);
     }
 
-    pub async fn scrape_scholar(&self, args: &dyn Args) -> Result<Vec<ScholarResult>, Error> {
+    pub async fn scrape_scholar(&self, args: Box<dyn Args + Send>) -> Result<Vec<ScholarResult>, Error> {
         let url: String;
         match args.get_url() {
             Ok(u) => url = u,
@@ -264,7 +273,7 @@ mod tests {
     #[test]
     fn build_url_query() {
         let sc = ScholarArgs{
-            query: "abcd",
+            query: String::from("abcd"),
             cite_id: None,
             from_year: None,
             to_year: None,
@@ -288,14 +297,14 @@ mod tests {
     #[test]
     fn build_url_all() {
         let sc = ScholarArgs{
-            query: "abcd",
-            cite_id: Some("213123123123"),
+            query: String::from("abcd"),
+            cite_id: Some(String::from("213123123123")),
             from_year: Some(2018),
             to_year: Some(2021),
             sort_by: Some(0),
-            cluster_id: Some("3121312312"),
-            lang: Some("en"),
-            lang_limit: Some("lang_fr|lang_en"),
+            cluster_id: Some(String::from("3121312312")),
+            lang: Some(String::from("en")),
+            lang_limit: Some(String::from("lang_fr|lang_en")),
             limit: Some(10),
             offset: Some(5),
             adult_filtering: Some(true),
@@ -312,7 +321,7 @@ mod tests {
     #[tokio::test]
     async fn scrape_with_query() {
         let sc = ScholarArgs{
-            query: "machine-learning",
+            query: String::from("machine-learning"),
             cite_id: None,
             from_year: None,
             to_year: None,
@@ -332,7 +341,7 @@ match sc.get_url() {
         }
 
         let client = init_client();
-        match client.scrape_scholar(&sc).await {
+        match client.scrape_scholar(Box::from(sc)).await {
             Ok(res) => assert_eq!(res.len(), 3),
             Err(_e) => assert_eq!(true, false),
         }
