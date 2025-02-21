@@ -3,10 +3,11 @@ extern crate select;
 
 use scraper::{Html, Selector};
 use async_trait::async_trait;
+use regex::Regex;
 
 #[derive(Debug)]
 pub struct Client {
-     client: reqwest::Client,
+    client: reqwest::Client,
 }
 
 #[derive(Debug)]
@@ -21,55 +22,57 @@ pub enum Error {
 
 #[derive(Debug)]
 pub struct ScholarResult {
-   pub title: String,
-   pub author: String,
-   pub abs: String,
-   pub link: String,
+    pub title: String,
+    pub author: String,
+    pub abs: String,
+    pub link: String,
+    pub domain: String,
+    pub year: String,
 }
 
 #[derive(Debug)]
 pub struct ScholarArgs {
-   // q - required
-   pub query: String,
+    /// q - required
+    pub query: String,
 
-   // cites - citaction id to trigger "cited by"
-   pub cite_id: Option<String>,
+    /// cites - citaction id to trigger "cited by"
+    pub cite_id: Option<String>,
 
-   // as_ylo - give results from this year onwards
-   pub from_year: Option<u16>,
+    /// as_ylo - give results from this year onwards
+    pub from_year: Option<u16>,
 
-   // as_yhi
-   pub to_year: Option<u16>,
+    /// as_yhi
+    pub to_year: Option<u16>,
 
-   // scisbd - 0 for relevence, 1 to include only abstracts, 2 for everything. Default = date
-   pub sort_by: Option<u8>,
+    /// scisbd - 0 for relevence, 1 to include only abstracts, 2 for everything. Default = date
+    pub sort_by: Option<u8>,
 
-   // cluster - query all versions. Use with q and cites prohibited
-   pub cluster_id: Option<String>,
+    /// cluster - query all versions. Use with q and cites prohibited
+    pub cluster_id: Option<String>,
 
-   // hl - eg: hl=en for english
-   pub lang: Option<String>,
+    /// hl - eg: hl=en for english
+    pub lang: Option<String>,
 
-   // lr - one or multiple languages to limit the results to
-   // eg: lr=lang_fr|lang_en
-   pub lang_limit: Option<String>,
+    /// lr - one or multiple languages to limit the results to
+    /// eg: lr=lang_fr|lang_en
+    pub lang_limit: Option<String>,
 
-   // num - max number of results to return
-   pub limit: Option<u32>,
+    /// num - max number of results to return
+    pub limit: Option<u32>,
 
-   // start - result offset. Can be used with limit for pagination
-   pub offset: Option<u32>,
+    /// start - result offset. Can be used with limit for pagination
+    pub offset: Option<u32>,
 
-   // safe - level of filtering
-   // safe=active or safe=off
-   pub adult_filtering: Option<bool>,
+    /// safe - level of filtering
+    /// safe=active or safe=off
+    pub adult_filtering: Option<bool>,
 
-   // filter - whether to give similar/ommitted results
-   // filter=1 for similar results and 0 for ommitted
-   pub include_similar_results: Option<bool>,
+    /// filter - whether to give similar/ommitted results
+    /// filter=1 for similar results and 0 for ommitted
+    pub include_similar_results: Option<bool>,
 
-   // as_vis - set to 1 for including citations, otherwise 0
-   pub include_citations: Option<bool>,
+    /// as_vis - set to 1 for including citations, otherwise 0
+    pub include_citations: Option<bool>,
 }
 
 #[async_trait]
@@ -207,7 +210,7 @@ impl Client {
         let article_selector = Selector::parse(".gs_ri").unwrap();
         let title_selector = Selector::parse(".gs_rt").unwrap();
         let abstract_selector = Selector::parse(".gs_rs").unwrap();
-        let author_selector = Selector::parse(".gs_a").unwrap();
+        let long_author_selector = Selector::parse(".gs_a").unwrap();
         let link_selector = Selector::parse("a").unwrap();
 
         let nodes = fragment.select(&article_selector).collect::<Vec<_>>();
@@ -225,25 +228,34 @@ impl Client {
                 let abs = rows[0].select(&abstract_selector)
                     .next()
                     .unwrap();
-                let author = rows[0].select(&author_selector)
+                let long_author = rows[0].select(&long_author_selector)
                     .next()
                     .unwrap();
 
                 let ti = title.text().collect::<String>();
                 let ab = abs.text().collect::<String>();
-                let au = author.text().collect::<String>();
+                let long_au = long_author.text().collect::<String>();
                 let li = link.to_string();
+
+                let regex = Regex::new(r"(?<post_authors>, (?<year>\d{4}) - (?<domain>.*))$").unwrap();
+                let matches = regex.captures(&long_au).unwrap();
+
+                let au = long_au[0..(long_au.len() - matches["post_authors"].len())].to_string();
+                let yr = matches["year"].to_string();
+                let dm = matches["domain"].to_string();
 
                 let l = ScholarResult{
                     title: ti,
                     author: au,
                     abs: ab,
                     link: li,
+                    domain: dm,
+                    year: yr
                 };
                 l
             }).collect::<Vec<ScholarResult>>();
 
-        return Ok(response);
+        Ok(response)
     }
 
     pub async fn scrape_scholar(&self, args: Box<dyn Args + Send>) -> Result<Vec<ScholarResult>, Error> {
@@ -259,9 +271,9 @@ impl Client {
             Err(e) => return Err(e),
         };
 
-        match self.scrape_serialize(doc) {
-            Ok(result) => return Ok(result),
-            Err(e) => return Err(e),
+        return match self.scrape_serialize(doc) {
+            Ok(result) => Ok(result),
+            Err(e) => Err(e),
         };
     }
 }

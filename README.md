@@ -4,7 +4,7 @@ The unofficial Google Scholar API
 
 ```rust
 fn query_google_scholar() {
-    let sc = scholar::ScholarArgs{
+    let scholar_query = scholar::ScholarArgs{
         query: String::from("machine-learning"),
         cite_id: None,
         from_year: Some(2018),
@@ -21,7 +21,7 @@ fn query_google_scholar() {
     };
     
     let client = scholar::init_client();
-    match client.scrape_scholar( & sc).await {
+    match client.scrape_scholar(Box::from(scholar_query)).await {
         Ok(result) => assert_eq ! (result.len(), 3),
         Err(_e) => assert_eq ! (true, false),
     };

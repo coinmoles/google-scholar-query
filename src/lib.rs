@@ -5,8 +5,8 @@ mod tests {
     use crate::scholar;
     #[test]
     fn new_scholar_query() {
-        let sc = scholar::ScholarArgs{
-            query: "machine-learning",
+        let sc = scholar::ScholarArgs {
+            query: String::from("machine-learning"),
             cite_id: None,
             from_year: None,
             to_year: None,
@@ -26,7 +26,7 @@ mod tests {
     #[tokio::test]
     async fn scrape() {
         let sc = scholar::ScholarArgs{
-            query: "machine-learning",
+            query: String::from("machine-learning"),
             cite_id: None,
             from_year: None,
             to_year: None,
@@ -42,7 +42,7 @@ mod tests {
         };
 
         let client = scholar::init_client();
-        match client.scrape_scholar(&sc).await {
+        match client.scrape_scholar(Box::from(sc)).await {
             Ok(result) => assert_eq!(result.len(), 3),
             Err(_e) => assert_eq!(true, false),
         };
