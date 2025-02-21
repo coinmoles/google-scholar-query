@@ -1,6 +1,6 @@
 [package]
 name = "google-scholar-query"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2018"
 authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>", "Julien-cpsn"]
 description = "The unofficial Google Scholar API"

@@ -28,7 +28,7 @@ pub struct ScholarResult {
     pub conference: Option<String>,
     pub link: String,
     pub domain: String,
-    pub year: String,
+    pub year: Option<String>,
 }
 
 #[derive(Debug)]
@@ -238,7 +238,7 @@ impl Client {
                 let long_au = long_author.text().collect::<String>();
                 let li = link.to_string();
 
-                let regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?(?<year>\d{4}) - (?<domain>.*))$").unwrap();
+                let regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$").unwrap();
                 let matches = regex.captures(&long_au).unwrap();
 
                 let au = long_au[0..(long_au.len() - matches["post_authors"].len())].to_string();
@@ -246,7 +246,10 @@ impl Client {
                     None => None,
                     Some(conference) => Some(conference.as_str().to_string())
                 };
-                let yr = matches["year"].to_string();
+                let yr = match matches.name("year") {
+                    None => None,
+                    Some(year) => Some(year.as_str().to_string())
+                };
                 let dm = matches["domain"].to_string();
 
                 ScholarResult {
