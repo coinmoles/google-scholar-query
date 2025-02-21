@@ -1,9 +1,9 @@
 extern crate reqwest;
 extern crate select;
 
-use scraper::{Html, Selector};
 use async_trait::async_trait;
 use regex::Regex;
+use scraper::{Html, Selector};
 
 #[derive(Debug)]
 pub struct Client {
@@ -25,6 +25,7 @@ pub struct ScholarResult {
     pub title: String,
     pub author: String,
     pub abs: String,
+    pub conference: Option<String>,
     pub link: String,
     pub domain: String,
     pub year: String,
@@ -237,22 +238,26 @@ impl Client {
                 let long_au = long_author.text().collect::<String>();
                 let li = link.to_string();
 
-                let regex = Regex::new(r"(?<post_authors>, (?<year>\d{4}) - (?<domain>.*))$").unwrap();
+                let regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?(?<year>\d{4}) - (?<domain>.*))$").unwrap();
                 let matches = regex.captures(&long_au).unwrap();
 
                 let au = long_au[0..(long_au.len() - matches["post_authors"].len())].to_string();
+                let conf = match matches.name("conference") {
+                    None => None,
+                    Some(conference) => Some(conference.as_str().to_string())
+                };
                 let yr = matches["year"].to_string();
                 let dm = matches["domain"].to_string();
 
-                let l = ScholarResult{
+                ScholarResult {
                     title: ti,
                     author: au,
                     abs: ab,
+                    conference: conf,
                     link: li,
                     domain: dm,
                     year: yr
-                };
-                l
+                }
             }).collect::<Vec<ScholarResult>>();
 
         Ok(response)
