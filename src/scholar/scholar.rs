@@ -31,7 +31,7 @@ pub struct ScholarResult {
     pub pdf_link: Option<String>,
     pub domain: String,
     pub year: Option<String>,
-    pub citations: u64,
+    pub citations: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -217,7 +217,7 @@ impl Client {
         let long_author_selector = Selector::parse(".gs_a").unwrap();
         let link_selector = Selector::parse(".gs_rt a").unwrap();
         let pdf_link_selector = Selector::parse(".gs_or_ggsm a").unwrap();
-        let actions_selector = Selector::parse(".gs_fl").unwrap();
+        let actions_selector = Selector::parse(".gs_flb").unwrap();
 
         let nodes = fragment.select(&article_selector).collect::<Vec<_>>();
 
@@ -272,10 +272,10 @@ impl Client {
 
                 // Citations
 
-                let citations_regex = Regex::new(r"(?<citations>\d)\u{a0}").unwrap();
+                let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}").unwrap();
                 let citations = match citations_regex.captures(&ac) {
-                    None => 0,
-                    Some(matches) => u64::from_str(&matches["citations"]).unwrap(),
+                    None => None,
+                    Some(matches) => Some(u64::from_str(&matches["citations"]).unwrap()),
                 };
 
                 ScholarResult {

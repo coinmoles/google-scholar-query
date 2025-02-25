@@ -1,6 +1,6 @@
 [package]
 name = "google-scholar-query"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2018"
 authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>", "Julien-cpsn"]
 description = "The unofficial Google Scholar API"
@@ -16,7 +16,7 @@ categories = ["api-bindings"]
 [dependencies]
 reqwest = { version = "0.12.12", default-features = false, features = ["json", "charset", "rustls-tls-native-roots"] }
 tokio = { version = "1", default-features = false }
-scraper = { version = "0.22.0", default-features = false }
+scraper = { version = "0.23.1", default-features = false }
 select = { version = "0.6.0", default-features = false }
 async-trait = { version = "0.1.86", default-features = false }
 regex = "1.11.1"
