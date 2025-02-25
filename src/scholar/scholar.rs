@@ -4,6 +4,7 @@ extern crate select;
 use async_trait::async_trait;
 use regex::Regex;
 use scraper::{Html, Selector};
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Client {
@@ -27,8 +28,10 @@ pub struct ScholarResult {
     pub abs: String,
     pub conference: Option<String>,
     pub link: String,
+    pub pdf_link: Option<String>,
     pub domain: String,
     pub year: Option<String>,
+    pub citations: u64,
 }
 
 #[derive(Debug)]
@@ -208,11 +211,13 @@ impl Client {
     fn scrape_serialize(&self, document: String) -> Result<Vec<ScholarResult>, Error> {
         let fragment = Html::parse_document(&document[..]);
 
-        let article_selector = Selector::parse(".gs_ri").unwrap();
+        let article_selector = Selector::parse(".gs_or").unwrap();
         let title_selector = Selector::parse(".gs_rt").unwrap();
         let abstract_selector = Selector::parse(".gs_rs").unwrap();
         let long_author_selector = Selector::parse(".gs_a").unwrap();
-        let link_selector = Selector::parse("a").unwrap();
+        let link_selector = Selector::parse(".gs_rt a").unwrap();
+        let pdf_link_selector = Selector::parse(".gs_or_ggsm a").unwrap();
+        let actions_selector = Selector::parse(".gs_fl").unwrap();
 
         let nodes = fragment.select(&article_selector).collect::<Vec<_>>();
 
@@ -226,10 +231,16 @@ impl Client {
                     .next()
                     .and_then(|n| n.value().attr("href"))
                     .unwrap();
+                let pdf_link = rows[0].select(&pdf_link_selector)
+                    .next()
+                    .and_then(|n| n.value().attr("href"));
                 let abs = rows[0].select(&abstract_selector)
                     .next()
                     .unwrap();
                 let long_author = rows[0].select(&long_author_selector)
+                    .next()
+                    .unwrap();
+                let actions = rows[0].select(&actions_selector)
                     .next()
                     .unwrap();
 
@@ -237,20 +248,35 @@ impl Client {
                 let ab = abs.text().collect::<String>();
                 let long_au = long_author.text().collect::<String>();
                 let li = link.to_string();
+                let pdf_li = match pdf_link {
+                    None => None,
+                    Some(pdf_link) => Some(pdf_link.to_string())
+                };
+                let ac = actions.text().collect::<String>();
 
-                let regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$").unwrap();
-                let matches = regex.captures(&long_au).unwrap();
+                // Author, conference and source
 
-                let au = long_au[0..(long_au.len() - matches["post_authors"].len())].to_string();
-                let conf = match matches.name("conference") {
+                let long_author_regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$").unwrap();
+                let long_author_matches = long_author_regex.captures(&long_au).unwrap();
+
+                let au = long_au[0..(long_au.len() - long_author_matches["post_authors"].len())].to_string();
+                let conf = match long_author_matches.name("conference") {
                     None => None,
                     Some(conference) => Some(conference.as_str().to_string())
                 };
-                let yr = match matches.name("year") {
+                let yr = match long_author_matches.name("year") {
                     None => None,
                     Some(year) => Some(year.as_str().to_string())
                 };
-                let dm = matches["domain"].to_string();
+                let dm = long_author_matches["domain"].to_string();
+
+                // Citations
+
+                let citations_regex = Regex::new(r"(?<citations>\d)\u{a0}").unwrap();
+                let citations = match citations_regex.captures(&ac) {
+                    None => 0,
+                    Some(matches) => u64::from_str(&matches["citations"]).unwrap(),
+                };
 
                 ScholarResult {
                     title: ti,
@@ -258,8 +284,10 @@ impl Client {
                     abs: ab,
                     conference: conf,
                     link: li,
+                    pdf_link: pdf_li,
                     domain: dm,
-                    year: yr
+                    year: yr,
+                    citations,
                 }
             }).collect::<Vec<ScholarResult>>();
 
