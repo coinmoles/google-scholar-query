@@ -1,8 +1,10 @@
-pub mod scholar;
+mod scholar;
+pub use scholar::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::scholar;
+    use super::*;
+
     #[test]
     fn new_scholar_query() {
         let sc = scholar::ScholarArgs {
