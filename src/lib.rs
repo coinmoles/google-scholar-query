@@ -41,7 +41,7 @@ mod tests {
             include_citations: None,
         };
 
-        let client = scholar::init_client();
+        let client = scholar::Client::default();
         match client.scrape_scholar(Box::from(sc)).await {
             Ok(result) => assert_eq!(result.len(), 3),
             Err(_e) => assert_eq!(true, false),

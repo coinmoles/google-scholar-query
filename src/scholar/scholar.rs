@@ -6,7 +6,7 @@ use regex::Regex;
 use scraper::{Html, Selector};
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Client {
     client: reqwest::Client,
 }
@@ -181,11 +181,6 @@ impl Args for ScholarArgs {
 #[derive(Debug)]
 pub enum Services {
     Scholar,
-}
-
-pub fn init_client() -> Client {
-    let client = reqwest::Client::new();
-    Client { client }
 }
 
 fn get_base_url<'a>(service: Services) -> &'a str {
@@ -391,7 +386,7 @@ mod tests {
             Err(_e) => assert_eq!(false, true),
         }
 
-        let client = init_client();
+        let client = Client::default();
         match client.scrape_scholar(Box::from(sc)).await {
             Ok(res) => assert_eq!(res.len(), 3),
             Err(_e) => assert_eq!(true, false),
