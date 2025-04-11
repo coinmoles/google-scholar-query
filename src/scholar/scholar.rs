@@ -11,6 +11,18 @@ pub struct Client {
     client: reqwest::Client,
 }
 
+impl Client {
+    pub fn new(client: reqwest::Client) -> Client {
+        Client { client }
+    }
+}
+
+impl From<reqwest::Client> for Client {
+    fn from(client: reqwest::Client) -> Self {
+        Self::new(client)
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     ConnectionError,
