@@ -1,22 +1,38 @@
-use derive_new::new;
-
-#[derive(Debug, new)]
+#[derive(Debug)]
 pub struct ScholarResult {
-    #[new(into)]
     pub title: String,
-    #[new(into)]
     pub author: String,
-    #[new(into)]
     pub r#abstract: String,
-    #[new(into)]
     pub conference: Option<String>,
-    #[new(into)]
     pub link: String,
-    #[new(into)]
     pub pdf_link: Option<String>,
-    #[new(into)]
     pub domain: String,
-    #[new(into)]
     pub year: Option<String>,
     pub citations: Option<u64>,
+}
+
+impl ScholarResult {
+    pub fn new(
+        title: impl Into<String>,
+        author: impl Into<String>,
+        r#abstract: impl Into<String>,
+        conference: Option<impl Into<String>>,
+        link: impl Into<String>,
+        pdf_link: Option<impl Into<String>>,
+        domain: impl Into<String>,
+        year: Option<impl Into<String>>,
+        citations: Option<u64>,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            author: author.into(),
+            r#abstract: r#abstract.into(),
+            conference: conference.map(Into::into),
+            link: link.into(),
+            pdf_link: pdf_link.map(Into::into),
+            domain: domain.into(),
+            year: year.map(Into::into),
+            citations,
+        }
+    }
 }

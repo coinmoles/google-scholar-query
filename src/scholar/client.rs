@@ -58,8 +58,7 @@ impl Client {
                 let pdf_link = rows[0]
                     .select(&pdf_link_selector)
                     .next()
-                    .and_then(|n| n.value().attr("href"))
-                    .map(|pdf_link| pdf_link.to_string());
+                    .and_then(|n| n.value().attr("href"));
                 let long_author = rows[0]
                     .select(&long_author_selector)
                     .next()?
@@ -82,11 +81,11 @@ impl Client {
                     [0..(long_author.len() - long_author_matches["post_authors"].len())];
                 let conference = long_author_matches
                     .name("conference")
-                    .map(|conf| conf.as_str().to_string());
+                    .map(|conf| conf.as_str());
                 let domain = &long_author_matches["domain"];
                 let year = long_author_matches
                     .name("year")
-                    .map(|year| year.as_str().to_string());
+                    .map(|year| year.as_str());
 
                 // Citations
                 let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}")
