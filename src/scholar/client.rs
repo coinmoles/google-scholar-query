@@ -1,4 +1,5 @@
 use regex::Regex;
+use reqwest::IntoUrl;
 use scraper::{Html, Selector};
 
 use super::{Args, Error, ScholarResult};
@@ -9,17 +10,12 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(client: reqwest::Client) -> Client {
+    pub fn new(client: reqwest::Client) -> Self {
         Client { client }
     }
 
-    async fn get_document(&self, url: &str) -> Result<String, Error> {
-        let resp = self.client.get(url).send().await;
-        if !resp.is_ok() {
-            return Err(Error::ConnectionError);
-        }
-        let val: String = resp.unwrap().text().await.unwrap();
-        return Ok(val);
+    async fn get_document<U: IntoUrl>(&self, url: U) -> Result<String, Error> {
+        Ok(self.client.get(url).send().await?.text().await?)
     }
 
     fn scrape_serialize(&self, document: String) -> Result<Vec<ScholarResult>, Error> {
@@ -112,22 +108,11 @@ impl Client {
         &self,
         args: Box<dyn Args + Send>,
     ) -> Result<Vec<ScholarResult>, Error> {
-        let url: String;
-        match args.get_url() {
-            Ok(u) => url = u,
-            Err(e) => return Err(e),
-        };
+        let url = args.get_url()?;
 
-        let doc: String;
-        match self.get_document(&url[..]).await {
-            Ok(page) => doc = page,
-            Err(e) => return Err(e),
-        };
+        let doc = self.get_document(url).await?;
 
-        return match self.scrape_serialize(doc) {
-            Ok(result) => Ok(result),
-            Err(e) => Err(e),
-        };
+        self.scrape_serialize(doc)
     }
 }
 
@@ -139,6 +124,8 @@ impl From<reqwest::Client> for Client {
 
 #[cfg(test)]
 mod tests {
+    use reqwest::Url;
+
     use crate::scholar::ScholarArgs;
 
     use super::*;
@@ -161,9 +148,11 @@ mod tests {
             include_citations: None,
         };
 
+        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd").unwrap()
+
         match sc.get_url() {
             Ok(url) => assert!(
-                url.eq("https://scholar.google.com/scholar?q=abcd"),
+                url.eq(&expected),
                 "value was {}",
                 url
             ),
@@ -188,9 +177,12 @@ mod tests {
             include_similar_results: Some(true),
             include_citations: Some(true),
         };
+
+        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd&cites=213123123123&as_ylo=2018&as_yhi=2021&scisbd=0&cluster=3121312312&hl=en&lr=lang_fr|lang_en&num=10&start=5&safe=active&filter=1&as_vis=1").unwrap();
+
         match sc.get_url() {
             Ok(url) => assert!(
-                url.eq("https://scholar.google.com/scholar?q=abcd&cites=213123123123&as_ylo=2018&as_yhi=2021&scisbd=0&cluster=3121312312&hl=en&lr=lang_fr|lang_en&num=10&start=5&safe=active&filter=1&as_vis=1"), "value was {}", url),
+                url.eq(&expected), "value was {}", url),
             Err(_e) => assert_eq!(false, true),
         }
     }

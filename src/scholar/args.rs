@@ -1,17 +1,27 @@
-use async_trait::async_trait;
+use std::borrow::Cow;
+
+use reqwest::Url;
 
 use super::Error;
 
-#[async_trait]
 pub trait Args {
     fn get_service(&self) -> Services;
-    fn get_url(&self) -> Result<String, Error>;
+    fn get_url(&self) -> Result<Url, Error>;
     fn get_limit(&self) -> usize;
 }
 
 #[derive(Debug)]
 pub enum Services {
     Scholar,
+}
+
+impl Services {
+    pub fn get_base_url(&self) -> Url {
+        match self {
+            Services::Scholar => Url::parse("https://scholar.google.com/scholar?")
+                .unwrap_or_else(|_| unreachable!("Is a valid URL")),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -61,83 +71,38 @@ pub struct ScholarArgs {
 
 impl Args for ScholarArgs {
     fn get_service(&self) -> Services {
-        return Services::Scholar;
+        Services::Scholar
     }
 
-    fn get_url(&self) -> Result<String, Error> {
-        let mut url = String::from(get_base_url(self.get_service()));
+    fn get_url(&self) -> Result<Url, Error> {
+        let mut url = self.get_service().get_base_url();
 
-        if self.query == "" {
-            return Err(Error::RequiredFieldError);
-        }
+        let query_params = [
+            ("q", Some(Cow::Borrowed(self.query.as_str()))),
+            ("cites", self.cite_id.as_deref().map(Into::into)),
+            ("as_ylo", self.from_year.map(own_display)),
+            ("as_yhi", self.to_year.map(own_display)),
+            (
+                "scisbd",
+                self.sort_by
+                    .and_then(|s| if s < 3 { Some(own_display(s)) } else { None }),
+            ),
+            ("cluster", self.cluster_id.as_deref().map(Into::into)),
+            ("hl", self.lang.as_deref().map(Into::into)), // TODO: validation
+            ("lr", self.lang_limit.as_deref().map(Into::into)),
+            ("num", self.limit.map(own_display)),
+            ("start", self.offset.map(own_display)),
+            ("safe", self.adult_filtering.map(bool_flag("active", "off"))),
+            (
+                "filter",
+                self.include_similar_results.map(bool_flag("1", "0")),
+            ),
+            ("as_vis", self.include_citations.map(bool_flag("1", "0"))),
+        ]
+        .into_iter()
+        .filter_map(|(k, v)| if let Some(v) = v { Some((k, v)) } else { None });
 
-        url.push_str("q=");
-        url.push_str(&self.query);
-
-        if let Some(i) = &self.cite_id {
-            url.push_str("&cites=");
-            url.push_str(i);
-        }
-        if let Some(i) = self.from_year {
-            url.push_str("&as_ylo=");
-            url.push_str(&i.to_string()[..]);
-        }
-        if let Some(i) = self.to_year {
-            url.push_str("&as_yhi=");
-            url.push_str(&i.to_string()[..]);
-        }
-        if let Some(i) = self.sort_by {
-            if i < 3 {
-                url.push_str("&scisbd=");
-                url.push_str(&i.to_string()[..]);
-            }
-        }
-        if let Some(i) = &self.cluster_id {
-            url.push_str("&cluster=");
-            url.push_str(i);
-        }
-        if let Some(i) = &self.lang {
-            // TODO: validation
-            url.push_str("&hl=");
-            url.push_str(i);
-        }
-        if let Some(i) = &self.lang_limit {
-            // TODO: validation
-            url.push_str("&lr=");
-            url.push_str(i);
-        }
-        if let Some(i) = self.limit {
-            url.push_str("&num=");
-            url.push_str(&i.to_string()[..]);
-        }
-        if let Some(i) = self.offset {
-            url.push_str("&start=");
-            url.push_str(&i.to_string()[..]);
-        }
-        if let Some(i) = self.adult_filtering {
-            url.push_str("&safe=");
-            if i {
-                url.push_str("active");
-            } else {
-                url.push_str("off");
-            }
-        }
-        if let Some(i) = self.include_similar_results {
-            url.push_str("&filter=");
-            if i {
-                url.push_str("1");
-            } else {
-                url.push_str("0");
-            }
-        }
-        if let Some(i) = self.include_citations {
-            url.push_str("&as_vis=");
-            if i {
-                url.push_str("1");
-            } else {
-                url.push_str("0");
-            }
-        }
+        url.query_pairs_mut().extend_pairs(query_params);
 
         return Ok(url);
     }
@@ -147,12 +112,14 @@ impl Args for ScholarArgs {
             return s as usize;
         }
 
-        return 0;
+        0
     }
 }
 
-fn get_base_url<'a>(service: Services) -> &'a str {
-    match service {
-        Services::Scholar => "https://scholar.google.com/scholar?",
-    }
+fn own_display<T: ToString>(v: T) -> Cow<'static, str> {
+    Cow::Owned(v.to_string())
+}
+
+fn bool_flag<'a>(true_val: &'a str, false_val: &'a str) -> impl Fn(bool) -> Cow<'a, str> {
+    move |value| Cow::Borrowed(if value { true_val } else { false_val })
 }
