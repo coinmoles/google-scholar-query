@@ -21,53 +21,53 @@ impl Client {
     fn scrape_serialize(&self, document: String) -> Result<Vec<ScholarResult>, Error> {
         let fragment = Html::parse_document(&document[..]);
 
-        let article_selector = Selector::parse(".gs_or").unwrap();
-        let title_selector = Selector::parse(".gs_rt").unwrap();
-        let abstract_selector = Selector::parse(".gs_rs").unwrap();
-        let long_author_selector = Selector::parse(".gs_a").unwrap();
-        let link_selector = Selector::parse(".gs_rt a").unwrap();
-        let pdf_link_selector = Selector::parse(".gs_or_ggsm a").unwrap();
-        let actions_selector = Selector::parse(".gs_flb").unwrap();
+        let article_selector =
+            Selector::parse(".gs_or").unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let title_selector =
+            Selector::parse(".gs_rt").unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let abstract_selector =
+            Selector::parse(".gs_rs").unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let long_author_selector =
+            Selector::parse(".gs_a").unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let link_selector =
+            Selector::parse(".gs_rt a").unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let pdf_link_selector = Selector::parse(".gs_or_ggsm a")
+            .unwrap_or_else(|_| unreachable!("Is a valid selector"));
+        let actions_selector =
+            Selector::parse(".gs_flb").unwrap_or_else(|_| unreachable!("Is a valid selector"));
 
         let nodes = fragment.select(&article_selector).collect::<Vec<_>>();
 
         let response = nodes
             .chunks_exact(1)
-            .map(|rows| {
+            .filter_map(|rows| {
                 let title = rows[0].select(&title_selector)
-                    .next()
-                    .unwrap();
+                    .next()?;
                 let link = rows[0].select(&link_selector)
                     .next()
-                    .and_then(|n| n.value().attr("href"))
-                    .unwrap();
+                    .and_then(|n| n.value().attr("href"))?;
                 let pdf_link = rows[0].select(&pdf_link_selector)
                     .next()
                     .and_then(|n| n.value().attr("href"));
                 let abs = rows[0].select(&abstract_selector)
-                    .next()
-                    .unwrap();
+                    .next()?;
                 let long_author = rows[0].select(&long_author_selector)
-                    .next()
-                    .unwrap();
+                    .next()?;
                 let actions = rows[0].select(&actions_selector)
-                    .next()
-                    .unwrap();
+                    .next()?;
 
                 let ti = title.text().collect::<String>();
                 let ab = abs.text().collect::<String>();
                 let long_au = long_author.text().collect::<String>();
                 let li = link.to_string();
-                let pdf_li = match pdf_link {
-                    None => None,
-                    Some(pdf_link) => Some(pdf_link.to_string())
-                };
+                let pdf_li = pdf_link.map(|pdf_link| pdf_link.to_string());
                 let ac = actions.text().collect::<String>();
 
                 // Author, conference and source
 
-                let long_author_regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$").unwrap();
-                let long_author_matches = long_author_regex.captures(&long_au).unwrap();
+                let long_author_regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$")
+                    .unwrap_or_else(|_| unreachable!("Is a valid regex"));
+                let long_author_matches = long_author_regex.captures(&long_au)?;
 
                 let au = long_au[0..(long_au.len() - long_author_matches["post_authors"].len())].to_string();
                 let conf = match long_author_matches.name("conference") {
@@ -82,13 +82,10 @@ impl Client {
 
                 // Citations
 
-                let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}").unwrap();
-                let citations = match citations_regex.captures(&ac) {
-                    None => None,
-                    Some(matches) => Some(matches["citations"].parse().unwrap()),
-                };
+                let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}").unwrap_or_else(|_| unreachable!("Is a valid regex"));
+                let citations = citations_regex.captures(&ac).and_then(|matches| matches["citations"].parse().ok());
 
-                ScholarResult {
+                let result = ScholarResult {
                     title: ti,
                     author: au,
                     abs: ab,
@@ -98,8 +95,9 @@ impl Client {
                     domain: dm,
                     year: yr,
                     citations,
-                }
-            }).collect::<Vec<ScholarResult>>();
+                };
+                Some(result)
+            }).collect::<Vec<_>>();
 
         Ok(response)
     }
