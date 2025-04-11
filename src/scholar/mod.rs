@@ -1,3 +1,11 @@
-mod scholar;
+mod client;
+pub use client::*;
 
-pub use self::scholar::*;
+mod args;
+pub use args::*;
+
+mod result;
+pub use result::*;
+
+mod error;
+pub use error::*;
