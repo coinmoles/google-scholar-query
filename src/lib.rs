@@ -25,7 +25,7 @@ mod tests {
 
     #[tokio::test]
     async fn scrape() {
-        let sc = scholar::ScholarArgs{
+        let sc = scholar::ScholarArgs {
             query: String::from("machine-learning"),
             cite_id: None,
             from_year: None,

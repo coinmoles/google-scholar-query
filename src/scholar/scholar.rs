@@ -6,7 +6,7 @@ use regex::Regex;
 use scraper::{Html, Selector};
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     client: reqwest::Client,
 }
@@ -92,91 +92,89 @@ impl Args for ScholarArgs {
     }
 
     fn get_url(&self) -> Result<String, Error> {
-       let mut url = String::from(
-           get_base_url(self.get_service())
-        );
+        let mut url = String::from(get_base_url(self.get_service()));
 
-       if self.query == "" {
-           return Err(Error::RequiredFieldError);
-       }
+        if self.query == "" {
+            return Err(Error::RequiredFieldError);
+        }
 
-       url.push_str("q=");
-       url.push_str(&self.query);
+        url.push_str("q=");
+        url.push_str(&self.query);
 
-       if let Some(i) = &self.cite_id {
-           url.push_str("&cites=");
-           url.push_str(i);
-       }
-       if let Some(i) = self.from_year {
-           url.push_str("&as_ylo=");
-           url.push_str(&i.to_string()[..]);
-       }
-       if let Some(i) = self.to_year {
-           url.push_str("&as_yhi=");
-           url.push_str(&i.to_string()[..]);
-       }
-       if let Some(i) = self.sort_by {
-           if i < 3 {
-               url.push_str("&scisbd=");
-               url.push_str(&i.to_string()[..]);
-           }
-       }
-       if let Some(i) = &self.cluster_id {
-           url.push_str("&cluster=");
-           url.push_str(i);
-       }
-       if let Some(i) = &self.lang {
-           // TODO: validation
-           url.push_str("&hl=");
-           url.push_str(i);
-       }
-       if let Some(i) = &self.lang_limit {
-           // TODO: validation
-           url.push_str("&lr=");
-           url.push_str(i);
-       }
-       if let Some(i) = self.limit {
-           url.push_str("&num=");
-           url.push_str(&i.to_string()[..]);
-       }
-       if let Some(i) = self.offset {
-           url.push_str("&start=");
-           url.push_str(&i.to_string()[..]);
-       }
-       if let Some(i) = self.adult_filtering {
-           url.push_str("&safe=");
-           if i {
-               url.push_str("active");
-           } else {
-               url.push_str("off");
-           }
-       }
-       if let Some(i) = self.include_similar_results {
-           url.push_str("&filter=");
-           if i {
-               url.push_str("1");
-           } else {
-               url.push_str("0");
-           }
-       }
-       if let Some(i) = self.include_citations {
-           url.push_str("&as_vis=");
-           if i {
-               url.push_str("1");
-           } else {
-               url.push_str("0");
-           }
-       }
+        if let Some(i) = &self.cite_id {
+            url.push_str("&cites=");
+            url.push_str(i);
+        }
+        if let Some(i) = self.from_year {
+            url.push_str("&as_ylo=");
+            url.push_str(&i.to_string()[..]);
+        }
+        if let Some(i) = self.to_year {
+            url.push_str("&as_yhi=");
+            url.push_str(&i.to_string()[..]);
+        }
+        if let Some(i) = self.sort_by {
+            if i < 3 {
+                url.push_str("&scisbd=");
+                url.push_str(&i.to_string()[..]);
+            }
+        }
+        if let Some(i) = &self.cluster_id {
+            url.push_str("&cluster=");
+            url.push_str(i);
+        }
+        if let Some(i) = &self.lang {
+            // TODO: validation
+            url.push_str("&hl=");
+            url.push_str(i);
+        }
+        if let Some(i) = &self.lang_limit {
+            // TODO: validation
+            url.push_str("&lr=");
+            url.push_str(i);
+        }
+        if let Some(i) = self.limit {
+            url.push_str("&num=");
+            url.push_str(&i.to_string()[..]);
+        }
+        if let Some(i) = self.offset {
+            url.push_str("&start=");
+            url.push_str(&i.to_string()[..]);
+        }
+        if let Some(i) = self.adult_filtering {
+            url.push_str("&safe=");
+            if i {
+                url.push_str("active");
+            } else {
+                url.push_str("off");
+            }
+        }
+        if let Some(i) = self.include_similar_results {
+            url.push_str("&filter=");
+            if i {
+                url.push_str("1");
+            } else {
+                url.push_str("0");
+            }
+        }
+        if let Some(i) = self.include_citations {
+            url.push_str("&as_vis=");
+            if i {
+                url.push_str("1");
+            } else {
+                url.push_str("0");
+            }
+        }
 
-       return Ok(url);
+        return Ok(url);
     }
 
     fn get_limit(&self) -> usize {
         if let Some(s) = self.limit {
-            return s as usize
+            return s as usize;
         }
 
-        return 0
+        return 0;
     }
 }
 
@@ -187,7 +185,7 @@ pub enum Services {
 
 pub fn init_client() -> Client {
     let client = reqwest::Client::new();
-    Client{client}
+    Client { client }
 }
 
 fn get_base_url<'a>(service: Services) -> &'a str {
@@ -198,9 +196,7 @@ fn get_base_url<'a>(service: Services) -> &'a str {
 
 impl Client {
     async fn get_document(&self, url: &str) -> Result<String, Error> {
-        let resp = self.client.get(url)
-            .send()
-            .await;
+        let resp = self.client.get(url).send().await;
         if !resp.is_ok() {
             return Err(Error::ConnectionError);
         }
@@ -294,13 +290,16 @@ impl Client {
         Ok(response)
     }
 
-    pub async fn scrape_scholar(&self, args: Box<dyn Args + Send>) -> Result<Vec<ScholarResult>, Error> {
+    pub async fn scrape_scholar(
+        &self,
+        args: Box<dyn Args + Send>,
+    ) -> Result<Vec<ScholarResult>, Error> {
         let url: String;
         match args.get_url() {
             Ok(u) => url = u,
             Err(e) => return Err(e),
         };
-        
+
         let doc: String;
         match self.get_document(&url[..]).await {
             Ok(page) => doc = page,
@@ -320,7 +319,7 @@ mod tests {
 
     #[test]
     fn build_url_query() {
-        let sc = ScholarArgs{
+        let sc = ScholarArgs {
             query: String::from("abcd"),
             cite_id: None,
             from_year: None,
@@ -337,14 +336,18 @@ mod tests {
         };
 
         match sc.get_url() {
-            Ok(url) => assert!(url.eq("https://scholar.google.com/scholar?q=abcd"), "value was {}", url),
+            Ok(url) => assert!(
+                url.eq("https://scholar.google.com/scholar?q=abcd"),
+                "value was {}",
+                url
+            ),
             Err(_e) => assert_eq!(false, true),
         }
     }
 
     #[test]
     fn build_url_all() {
-        let sc = ScholarArgs{
+        let sc = ScholarArgs {
             query: String::from("abcd"),
             cite_id: Some(String::from("213123123123")),
             from_year: Some(2018),
@@ -368,7 +371,7 @@ mod tests {
 
     #[tokio::test]
     async fn scrape_with_query() {
-        let sc = ScholarArgs{
+        let sc = ScholarArgs {
             query: String::from("machine-learning"),
             cite_id: None,
             from_year: None,
@@ -383,7 +386,7 @@ mod tests {
             include_similar_results: None,
             include_citations: None,
         };
-match sc.get_url() {
+        match sc.get_url() {
             Ok(url) => println!("_URLS {}", url),
             Err(_e) => assert_eq!(false, true),
         }
