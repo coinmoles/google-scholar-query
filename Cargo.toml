@@ -2,10 +2,10 @@
 name = "google-scholar-query"
 version = "0.1.6"
 edition = "2024"
-authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>", "Julien-cpsn"]
+authors = ["L04DB4L4NC3R <angadsharma1016@gmail.com>", "Julien-cpsn", "coinmoles <andrewpark421@gmail.com>"]
 description = "The unofficial Google Scholar API"
-repository = "https://github.com/Julien-cpsn/google-scholar-query"
-homepage = "https://github.com/Julien-cpsn/google-scholar-query"
+repository = "https://github.com/coinmoles/google-scholar-query"
+homepage = "https://github.com/coinmoles/google-scholar-query"
 readme = "README.md"
 license-file = "LICENSE"
 keywords = ["google", "scholar", "api", "research", "books"]
