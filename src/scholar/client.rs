@@ -41,63 +41,66 @@ impl Client {
         let response = nodes
             .chunks_exact(1)
             .filter_map(|rows| {
-                let title = rows[0].select(&title_selector)
-                    .next()?;
-                let link = rows[0].select(&link_selector)
+                let title = rows[0]
+                    .select(&title_selector)
+                    .next()?
+                    .text()
+                    .collect::<String>();
+                let r#abstract = rows[0]
+                    .select(&abstract_selector)
+                    .next()?
+                    .text()
+                    .collect::<String>();
+                let link = rows[0]
+                    .select(&link_selector)
                     .next()
                     .and_then(|n| n.value().attr("href"))?;
-                let pdf_link = rows[0].select(&pdf_link_selector)
+                let pdf_link = rows[0]
+                    .select(&pdf_link_selector)
                     .next()
-                    .and_then(|n| n.value().attr("href"));
-                let abs = rows[0].select(&abstract_selector)
-                    .next()?;
-                let long_author = rows[0].select(&long_author_selector)
-                    .next()?;
-                let actions = rows[0].select(&actions_selector)
-                    .next()?;
-
-                let ti = title.text().collect::<String>();
-                let ab = abs.text().collect::<String>();
-                let long_au = long_author.text().collect::<String>();
-                let li = link.to_string();
-                let pdf_li = pdf_link.map(|pdf_link| pdf_link.to_string());
-                let ac = actions.text().collect::<String>();
+                    .and_then(|n| n.value().attr("href"))
+                    .map(|pdf_link| pdf_link.to_string());
+                let long_author = rows[0]
+                    .select(&long_author_selector)
+                    .next()?
+                    .text()
+                    .collect::<String>();
+                let actions = rows[0]
+                    .select(&actions_selector)
+                    .next()?
+                    .text()
+                    .collect::<String>();
 
                 // Author, conference and source
+                let long_author_regex = Regex::new(
+                    r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$",
+                )
+                .unwrap_or_else(|_| unreachable!("Is a valid regex"));
+                let long_author_matches = long_author_regex.captures(&long_author)?;
 
-                let long_author_regex = Regex::new(r"(?<post_authors>[ \s]- ((?<conference>.*), )?((?<year>\d{4}) - )?(?<domain>.*))$")
-                    .unwrap_or_else(|_| unreachable!("Is a valid regex"));
-                let long_author_matches = long_author_regex.captures(&long_au)?;
-
-                let au = long_au[0..(long_au.len() - long_author_matches["post_authors"].len())].to_string();
-                let conf = match long_author_matches.name("conference") {
-                    None => None,
-                    Some(conference) => Some(conference.as_str().to_string())
-                };
-                let yr = match long_author_matches.name("year") {
-                    None => None,
-                    Some(year) => Some(year.as_str().to_string())
-                };
-                let dm = long_author_matches["domain"].to_string();
+                let author = &long_author
+                    [0..(long_author.len() - long_author_matches["post_authors"].len())];
+                let conference = long_author_matches
+                    .name("conference")
+                    .map(|conf| conf.as_str().to_string());
+                let domain = &long_author_matches["domain"];
+                let year = long_author_matches
+                    .name("year")
+                    .map(|year| year.as_str().to_string());
 
                 // Citations
+                let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}")
+                    .unwrap_or_else(|_| unreachable!("Is a valid regex"));
+                let citations = citations_regex
+                    .captures(&actions)
+                    .and_then(|matches| matches["citations"].parse().ok());
 
-                let citations_regex = Regex::new(r"(?<citations>\d+)\u{00A0}").unwrap_or_else(|_| unreachable!("Is a valid regex"));
-                let citations = citations_regex.captures(&ac).and_then(|matches| matches["citations"].parse().ok());
-
-                let result = ScholarResult {
-                    title: ti,
-                    author: au,
-                    abs: ab,
-                    conference: conf,
-                    link: li,
-                    pdf_link: pdf_li,
-                    domain: dm,
-                    year: yr,
-                    citations,
-                };
+                let result = ScholarResult::new(
+                    title, author, r#abstract, conference, link, pdf_link, domain, year, citations,
+                );
                 Some(result)
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         Ok(response)
     }
@@ -146,14 +149,10 @@ mod tests {
             include_citations: None,
         };
 
-        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd").unwrap()
+        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd").unwrap();
 
         match sc.get_url() {
-            Ok(url) => assert!(
-                url.eq(&expected),
-                "value was {}",
-                url
-            ),
+            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
             Err(_e) => assert_eq!(false, true),
         }
     }
@@ -179,8 +178,7 @@ mod tests {
         let expected = Url::parse("https://scholar.google.com/scholar?q=abcd&cites=213123123123&as_ylo=2018&as_yhi=2021&scisbd=0&cluster=3121312312&hl=en&lr=lang_fr|lang_en&num=10&start=5&safe=active&filter=1&as_vis=1").unwrap();
 
         match sc.get_url() {
-            Ok(url) => assert!(
-                url.eq(&expected), "value was {}", url),
+            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
             Err(_e) => assert_eq!(false, true),
         }
     }
