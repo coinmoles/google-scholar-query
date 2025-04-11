@@ -123,3 +123,60 @@ fn own_display<T: ToString>(v: T) -> Cow<'static, str> {
 fn bool_flag<'a>(true_val: &'a str, false_val: &'a str) -> impl Fn(bool) -> Cow<'a, str> {
     move |value| Cow::Borrowed(if value { true_val } else { false_val })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_url_query() {
+        let sc = ScholarArgs {
+            query: String::from("abcd"),
+            cite_id: None,
+            from_year: None,
+            to_year: None,
+            sort_by: None,
+            cluster_id: None,
+            lang: None,
+            lang_limit: None,
+            limit: None,
+            offset: None,
+            adult_filtering: None,
+            include_similar_results: None,
+            include_citations: None,
+        };
+
+        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd").unwrap();
+
+        match sc.get_url() {
+            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
+            Err(_e) => assert_eq!(false, true),
+        }
+    }
+
+    #[test]
+    fn build_url_all() {
+        let sc = ScholarArgs {
+            query: String::from("abcd"),
+            cite_id: Some(String::from("213123123123")),
+            from_year: Some(2018),
+            to_year: Some(2021),
+            sort_by: Some(0),
+            cluster_id: Some(String::from("3121312312")),
+            lang: Some(String::from("en")),
+            lang_limit: Some(String::from("lang_fr|lang_en")),
+            limit: Some(10),
+            offset: Some(5),
+            adult_filtering: Some(true),
+            include_similar_results: Some(true),
+            include_citations: Some(true),
+        };
+
+        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd&cites=213123123123&as_ylo=2018&as_yhi=2021&scisbd=0&cluster=3121312312&hl=en&lr=lang_fr|lang_en&num=10&start=5&safe=active&filter=1&as_vis=1").unwrap();
+
+        match sc.get_url() {
+            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
+            Err(_e) => assert_eq!(false, true),
+        }
+    }
+}

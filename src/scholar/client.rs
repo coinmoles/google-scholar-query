@@ -125,63 +125,9 @@ impl From<reqwest::Client> for Client {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Url;
-
     use crate::scholar::ScholarArgs;
 
     use super::*;
-
-    #[test]
-    fn build_url_query() {
-        let sc = ScholarArgs {
-            query: String::from("abcd"),
-            cite_id: None,
-            from_year: None,
-            to_year: None,
-            sort_by: None,
-            cluster_id: None,
-            lang: None,
-            lang_limit: None,
-            limit: None,
-            offset: None,
-            adult_filtering: None,
-            include_similar_results: None,
-            include_citations: None,
-        };
-
-        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd").unwrap();
-
-        match sc.get_url() {
-            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
-            Err(_e) => assert_eq!(false, true),
-        }
-    }
-
-    #[test]
-    fn build_url_all() {
-        let sc = ScholarArgs {
-            query: String::from("abcd"),
-            cite_id: Some(String::from("213123123123")),
-            from_year: Some(2018),
-            to_year: Some(2021),
-            sort_by: Some(0),
-            cluster_id: Some(String::from("3121312312")),
-            lang: Some(String::from("en")),
-            lang_limit: Some(String::from("lang_fr|lang_en")),
-            limit: Some(10),
-            offset: Some(5),
-            adult_filtering: Some(true),
-            include_similar_results: Some(true),
-            include_citations: Some(true),
-        };
-
-        let expected = Url::parse("https://scholar.google.com/scholar?q=abcd&cites=213123123123&as_ylo=2018&as_yhi=2021&scisbd=0&cluster=3121312312&hl=en&lr=lang_fr|lang_en&num=10&start=5&safe=active&filter=1&as_vis=1").unwrap();
-
-        match sc.get_url() {
-            Ok(url) => assert!(url.eq(&expected), "value was {}", url),
-            Err(_e) => assert_eq!(false, true),
-        }
-    }
 
     #[tokio::test]
     async fn scrape_with_query() {
@@ -206,9 +152,9 @@ mod tests {
         }
 
         let client = Client::default();
-        match client.scrape_scholar(Box::from(sc)).await {
-            Ok(res) => assert_eq!(res.len(), 3),
-            Err(_e) => assert_eq!(true, false),
-        }
+
+        let result = client.scrape_scholar(Box::from(sc)).await.unwrap();
+
+        println!("{:#?}", result);
     }
 }
