@@ -12,6 +12,7 @@ pub struct ScholarResult {
 }
 
 impl ScholarResult {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         title: impl Into<String>,
         author: impl Into<String>,

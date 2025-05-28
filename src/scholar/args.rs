@@ -100,11 +100,11 @@ impl Args for ScholarArgs {
             ("as_vis", self.include_citations.map(bool_flag("1", "0"))),
         ]
         .into_iter()
-        .filter_map(|(k, v)| if let Some(v) = v { Some((k, v)) } else { None });
+        .filter_map(|(k, v)| v.map(|v| (k, v)));
 
         url.query_pairs_mut().extend_pairs(query_params);
 
-        return Ok(url);
+        Ok(url)
     }
 
     fn get_limit(&self) -> usize {
